@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en" data-theme="day">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Paper Reading Partner</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%233b6fe0'/><path d='M8 9h16M8 14h16M8 19h10' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>" />
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand">Paper Reading Partner</div>
+
+    <div class="group">
+      <button id="btn-open" class="primary" title="Open a PDF (or drag & drop one anywhere)">Open PDF · 打开</button>
+      <input id="file-input" type="file" accept="application/pdf,.pdf" hidden />
+    </div>
+
+    <div class="group" title="Zoom the paper (Ctrl + / Ctrl −)">
+      <button id="zoom-out" aria-label="Zoom out">−</button>
+      <span id="zoom-label" class="label">100%</span>
+      <button id="zoom-in" aria-label="Zoom in">+</button>
+      <button id="zoom-fit" title="Fit page width">Fit</button>
+    </div>
+
+    <div class="group" title="Font size of notes, AI answers and translations">
+      <button id="font-down" aria-label="Smaller text">A−</button>
+      <span id="font-label" class="label">15px</span>
+      <button id="font-up" aria-label="Larger text">A+</button>
+    </div>
+
+    <div class="group">
+      <button id="btn-focus" class="toggle" title="Highlight the line under the mouse and grey out the rest (F)">Line focus · 聚焦</button>
+      <select id="theme" title="Reading mode">
+        <option value="day">Day · 日间</option>
+        <option value="eye">Eye-care · 护眼</option>
+        <option value="night">Night · 夜间</option>
+      </select>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="group">
+      <button id="btn-export" title="Download the paper with your highlights, notes and AI chat">Export PDF · 导出</button>
+      <div class="dropdown">
+        <button id="btn-more" aria-label="More">More ▾</button>
+        <div id="more-menu" class="menu" hidden>
+          <button data-act="md">Export notes as Markdown (.md)</button>
+          <button data-act="save-json">Save project file (.json)</button>
+          <button data-act="load-json">Load project file (.json)</button>
+          <input id="json-input" type="file" accept="application/json,.json" hidden />
+        </div>
+      </div>
+      <button id="btn-settings" title="Settings: ChatGPT API key, model, translation">Settings</button>
+      <button id="btn-sidebar" class="toggle on" title="Show / hide the AI side bar">Side bar</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section id="viewer" class="viewer">
+      <div id="empty" class="empty">
+        <div class="empty-card">
+          <h1>Paper Reading Partner</h1>
+          <p>Open a PDF paper to start reading. 打开一篇论文开始阅读。</p>
+          <button id="btn-open-2" class="primary big">Choose a PDF…</button>
+          <p class="muted">or drag &amp; drop a PDF file here</p>
+          <ul class="tips">
+            <li><b>Line focus</b> follows your mouse and greys out the rest.</li>
+            <li><b>Double-click</b> a word or <b>select</b> text → Translate · Ask AI · Highlight · Note.</li>
+            <li>Notes support Markdown and LaTeX: <code>$E=mc^2$</code>, <code>$$\int_0^1 x\,dx$$</code>.</li>
+            <li>Everything is saved automatically in this browser.</li>
+          </ul>
+        </div>
+      </div>
+      <div id="pages" class="pages"></div>
+    </section>
+
+    <aside id="sidebar" class="sidebar">
+      <div class="tabs">
+        <button class="tab active" data-tab="chat">AI assistant · AI 助手</button>
+        <button class="tab" data-tab="notes">Notes · 笔记 <span id="notes-count" class="count">0</span></button>
+      </div>
+
+      <div id="tab-chat" class="tab-panel active">
+        <div id="chat-log" class="chat-log">
+          <div class="chat-empty">
+            <p>Select text in the paper and choose <b>Ask AI</b>, or just type a question below.</p>
+            <p class="muted">选中论文中的文字并点击 “Ask AI”，或直接在下方提问。</p>
+          </div>
+        </div>
+        <div class="composer">
+          <div id="quote-chip" class="quote-chip" hidden>
+            <span class="quote-text"></span>
+            <button class="x" aria-label="Remove quote">✕</button>
+          </div>
+          <div class="quick">
+            <button data-q="Please explain this passage in simple terms.">Explain · 解释</button>
+            <button data-q="Translate this passage into Chinese sentence by sentence, then explain the key terms.">Translate + explain</button>
+            <button data-q="What is the main point of this passage and why does it matter in the paper?">Main point · 要点</button>
+            <button data-q="Explain the math / formulas here step by step.">Math · 公式</button>
+          </div>
+          <textarea id="chat-input" rows="3" placeholder="Ask anything about the paper…  (Enter to send, Shift+Enter for a new line)"></textarea>
+          <div class="composer-actions">
+            <button id="chat-clear" class="ghost">Clear chat</button>
+            <span class="spacer"></span>
+            <button id="chat-stop" hidden>Stop</button>
+            <button id="chat-send" class="primary">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-notes" class="tab-panel">
+        <div id="notes-list" class="notes-list"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- floating action menu for selections / highlights -->
+  <div id="sel-menu" class="sel-menu" hidden></div>
+
+  <!-- translation popover -->
+  <div id="tr-pop" class="tr-pop" hidden>
+    <div class="tr-head">
+      <span class="tr-title">Translation · 翻译</span>
+      <span class="tr-src"></span>
+      <button class="x" aria-label="Close">✕</button>
+    </div>
+    <div class="tr-source"></div>
+    <div class="tr-body rich"></div>
+    <div class="tr-actions">
+      <button data-act="note">Save as note</button>
+      <button data-act="ask">Ask AI more</button>
+    </div>
+  </div>
+
+  <dialog id="settings-dlg">
+    <form method="dialog" class="dlg">
+      <h2>Settings · 设置</h2>
+      <label>OpenAI API key
+        <input id="set-key" type="password" autocomplete="off" placeholder="sk-…" />
+        <small>Stored only in this browser. It's sent only to the API address below.</small>
+      </label>
+      <label>API base URL
+        <input id="set-base" type="text" placeholder="https://api.openai.com/v1" />
+        <small>Any OpenAI-compatible endpoint works (e.g. a proxy or another provider).</small>
+      </label>
+      <label>Model
+        <input id="set-model" type="text" placeholder="gpt-4o-mini" />
+      </label>
+      <label>AI answer language · 回答语言
+        <select id="set-lang">
+          <option value="zh">中文 (Chinese)</option>
+          <option value="both">中英双语 (Bilingual)</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <label>Translate with · 翻译方式
+        <select id="set-tr">
+          <option value="auto">Auto: Google Translate, falls back to ChatGPT</option>
+          <option value="google">Google Translate (free, no key)</option>
+          <option value="ai">ChatGPT (uses your API key, better for context)</option>
+        </select>
+      </label>
+      <label>Translate into · 目标语言
+        <select id="set-target">
+          <option value="zh-CN">简体中文</option>
+          <option value="zh-TW">繁體中文</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <div class="dlg-actions">
+        <button id="set-save" value="save" class="primary">Save</button>
+        <button value="cancel" class="ghost">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="export-dlg">
+    <form method="dialog" class="dlg">
+      <h2>Export PDF · 导出</h2>
+      <label class="check"><input type="checkbox" id="ex-hl" checked /> Highlights (as real PDF highlight annotations)</label>
+      <label class="check"><input type="checkbox" id="ex-notes" checked /> Notes beside each page (math rendered)</label>
+      <label class="check"><input type="checkbox" id="ex-chat" checked /> AI conversation as an appendix</label>
+      <p class="muted">The result is a standard PDF that opens in Acrobat, Preview, Edge, Zotero and other PDF apps.</p>
+      <div class="dlg-actions">
+        <button id="ex-go" value="go" class="primary">Export &amp; download</button>
+        <button value="cancel" class="ghost">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+  <div id="drop-hint" class="drop-hint" hidden>Drop the PDF to open it</div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

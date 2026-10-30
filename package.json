@@ -1,0 +1,23 @@
+{
+  "name": "paper-reading-partner",
+  "version": "1.0.0",
+  "description": "A focused PDF paper reader with line focus, translation, highlights, LaTeX notes and an AI side bar.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "dompurify": "^3.2.4",
+    "html2canvas": "^1.4.1",
+    "katex": "^0.16.11",
+    "marked": "^14.1.4",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.10.38"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  },
+  "private": true,
+  "type": "module"
+}
