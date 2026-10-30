@@ -67,7 +67,68 @@ function computeLines(textLayer, pageEl) {
       lines.push({ ...bx });
     }
   }
-  return lines;
+  return mergeAcrossWideGaps(lines, boxes);
+}
+
+/**
+ * Justified text can leave word gaps wider than the threshold above, splitting
+ * one line into fragments. Join fragments on the same row unless the gap is the
+ * gutter between two columns (an x range that almost no text crosses).
+ */
+function mergeAcrossWideGaps(lines, boxes) {
+  const BINS = 200;
+  const cover = new Array(BINS).fill(0);
+  for (const b of boxes) {
+    for (let i = Math.max(0, Math.floor(b.l * BINS)); i < Math.min(BINS, Math.ceil(b.r * BINS)); i++) cover[i]++;
+  }
+  const quiet = Math.max(1, boxes.length * 0.004);
+  const isGutter = (x1, x2) => {
+    for (let i = Math.ceil(x1 * BINS); i < Math.floor(x2 * BINS); i++) {
+      if (i / BINS > 0.25 && i / BINS < 0.75 && cover[i] <= quiet) return true;
+    }
+    return false;
+  };
+  lines.sort((a, b) => a.t + a.b - (b.t + b.b) || a.l - b.l);
+  const out = [];
+  for (const L of lines) {
+    const prev = out.findLast((M) => {
+      const overlap = Math.min(M.b, L.b) - Math.max(M.t, L.t);
+      return overlap > 0.6 * Math.min(M.b - M.t, L.b - L.t);
+    });
+    if (prev && L.l >= prev.r && L.l - prev.r < 0.08 && !isGutter(prev.r, L.l)) {
+      prev.r = Math.max(prev.r, L.r);
+      prev.t = Math.min(prev.t, L.t);
+      prev.b = Math.max(prev.b, L.b);
+    } else {
+      out.push(L);
+    }
+  }
+  return out;
+}
+
+/**
+ * Lines in reading order: full-width lines and columns top to bottom, with the
+ * left column of a two-column block read before the right one.
+ */
+function readingOrder(lines) {
+  if (lines.order) return lines.order;
+  const wide = (L) => L.r - L.l > 0.55;
+  const colOf = (L) => (wide(L) ? -1 : (L.l + L.r) / 2 < 0.5 ? 0 : 1);
+  // full-width lines split the page into blocks; inside a block read column 0, then 1
+  const sorted = [...lines].sort((a, b) => a.t - b.t);
+  const order = [];
+  let block = [];
+  const flush = () => {
+    block.sort((a, b) => colOf(a) - colOf(b) || a.t - b.t);
+    order.push(...block);
+    block = [];
+  };
+  for (const L of sorted) {
+    if (wide(L)) { flush(); order.push(L); } else block.push(L);
+  }
+  flush();
+  lines.order = order;
+  return order;
 }
 
 export class Viewer {
@@ -85,7 +146,7 @@ export class Viewer {
     this.frame = 0;
 
     scrollEl.addEventListener('scroll', () => this.scheduleRender(), { passive: true });
-    window.addEventListener('resize', () => this.scheduleRender());
+    window.addEventListener('resize', () => { this.centerHorizontally(); this.scheduleRender(); });
     pagesEl.addEventListener('mousemove', (e) => this.onMove(e));
     pagesEl.addEventListener('mouseleave', () => this.clearFocus());
     pagesEl.addEventListener('mousedown', (e) => {
@@ -148,6 +209,7 @@ export class Viewer {
     this.textLayers.clear();
     this.pages = [];
     this.activePage = null;
+    this.current = null;
     for (let num = 1; num <= this.pdf.numPages; num++) {
       const page = await this.pdf.getPage(num);
       const vp = page.getViewport({ scale: 1 });
@@ -191,8 +253,9 @@ export class Viewer {
 
   fitScale() {
     if (!this.pages.length) return this.scale;
+    // the page is centred, so leave room for the notes margin on both sides
     const marginW = this.pages[0].margin.offsetWidth || 0;
-    const avail = this.scrollEl.clientWidth - marginW - 72;
+    const avail = this.scrollEl.clientWidth - 2 * marginW - 100;
     return Math.max(MIN_SCALE, Math.min(MAX_SCALE, avail / this.pages[0].baseW));
   }
 
@@ -212,8 +275,15 @@ export class Viewer {
     this.scale = scale;
     this.applySize();
     sc.scrollTop = ratio * sc.scrollHeight - sc.clientHeight / 2;
+    this.centerHorizontally();
     this.onScale?.(scale);
     this.scheduleRender();
+  }
+
+  /** When the page area is wider than the window, keep the page itself in the middle. */
+  centerHorizontally() {
+    const sc = this.scrollEl;
+    sc.scrollLeft = (sc.scrollWidth - sc.clientWidth) / 2;
   }
 
   scheduleRender() {
@@ -261,6 +331,12 @@ export class Viewer {
       p.textLayer.replaceWith(textLayer);
       p.textLayer = textLayer;
       p.lines = computeLines(textLayer, p.pageEl);
+      if (this.current?.p === p) {
+        // re-rendered after a zoom: keep the band on the same line
+        const L = this.current.L;
+        const same = p.lines.reduce((a, b) => (Math.abs(b.t - L.t) + Math.abs(b.l - L.l) < Math.abs(a.t - L.t) + Math.abs(a.l - L.l) ? b : a), p.lines[0]);
+        if (same) this.showBand(p, same);
+      }
       p.renderedScale = scale;
       this.onPageRendered?.(p);
     } catch (e) {
@@ -295,13 +371,20 @@ export class Viewer {
 
   onMove(e) {
     if (!this.focusEnabled || this.mouseDown) return;
+    // ignore the synthetic mousemove browsers fire when the page scrolls under a still mouse
+    if (e.clientX === this.lastMouse?.x && e.clientY === this.lastMouse?.y) return;
+    this.lastMouse = { x: e.clientX, y: e.clientY };
     const pageEl = e.target.closest?.('.page');
     if (!pageEl) return; // in the notes margin: keep the last line focused
-    const p = this.pages[pageEl.dataset.page - 1];
+    this.focusAt(this.pages[pageEl.dataset.page - 1], e.clientX, e.clientY);
+  }
+
+  /** Focus the line nearest to a screen point on page p. */
+  focusAt(p, clientX, clientY) {
     if (!p?.lines.length) return;
-    const r = pageEl.getBoundingClientRect();
-    const x = (e.clientX - r.left) / r.width;
-    const y = (e.clientY - r.top) / r.height;
+    const r = p.pageEl.getBoundingClientRect();
+    const x = (clientX - r.left) / r.width;
+    const y = (clientY - r.top) / r.height;
     let best = null;
     let bestD = Infinity;
     for (const L of p.lines) {
@@ -314,6 +397,7 @@ export class Viewer {
   }
 
   showBand(p, L) {
+    this.current = { p, L };
     if (this.activePage !== p) {
       this.activePage?.pageEl.classList.remove('focus-active');
       p.pageEl.classList.add('focus-active');
@@ -326,6 +410,53 @@ export class Viewer {
     s.width = `calc(${((L.r - L.l) * 100).toFixed(3)}% + 10px)`;
     s.top = `${((L.t - padY) * 100).toFixed(3)}%`;
     s.height = `${((L.b - L.t + 2 * padY) * 100).toFixed(3)}%`;
+  }
+
+  /** Move the focus band to the next (dir = 1) or previous (dir = -1) line in reading order. */
+  async step(dir) {
+    if (!this.focusEnabled || !this.pages.length) return;
+    let cur = this.current;
+    if (!cur) {
+      // start from the first line visible on screen
+      const view = this.scrollEl.getBoundingClientRect();
+      for (const p of this.pages) {
+        const r = p.pageEl.getBoundingClientRect();
+        if (r.bottom < view.top || !p.lines.length) continue;
+        const top = (view.top - r.top) / r.height;
+        const L = readingOrder(p.lines).find((l) => l.t >= top) || p.lines[0];
+        this.showBand(p, L);
+        this.revealBand();
+        return;
+      }
+      return;
+    }
+    let { p, L } = cur;
+    const order = readingOrder(p.lines);
+    const i = order.indexOf(L);
+    let next = order[i + dir];
+    while (!next) {
+      p = this.pages[p.num - 1 + dir];
+      if (!p) return;
+      if (!p.lines.length || p.renderedScale !== this.scale) {
+        p.row.scrollIntoView({ block: dir > 0 ? 'start' : 'end' });
+        await this.renderPage(p);
+      }
+      const o = readingOrder(p.lines);
+      next = dir > 0 ? o[0] : o[o.length - 1];
+    }
+    this.showBand(p, next);
+    this.revealBand();
+  }
+
+  /** Scroll just enough to keep the focused line comfortably on screen. */
+  revealBand() {
+    const band = this.current?.p.band;
+    if (!band) return;
+    const b = band.getBoundingClientRect();
+    const v = this.scrollEl.getBoundingClientRect();
+    const pad = v.height * 0.2;
+    if (b.top < v.top + pad) this.scrollEl.scrollBy({ top: b.top - v.top - pad });
+    else if (b.bottom > v.bottom - pad) this.scrollEl.scrollBy({ top: b.bottom - v.bottom + pad });
   }
 
   clearFocus() {

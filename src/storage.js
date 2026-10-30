@@ -12,7 +12,6 @@ export const DEFAULT_SETTINGS = {
   theme: 'day',
   fontSize: 15,
   focus: true,
-  sidebar: true,
 };
 
 export function loadSettings() {

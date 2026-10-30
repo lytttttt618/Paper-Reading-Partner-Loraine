@@ -154,12 +154,16 @@ function applyTheme() {
 }
 $('#theme').addEventListener('change', (e) => { settings.theme = e.target.value; saveSettings(settings); applyTheme(); });
 
-function applySidebar() {
-  document.body.classList.toggle('no-sidebar', !settings.sidebar);
-  $('#btn-sidebar').classList.toggle('on', settings.sidebar);
-  requestAnimationFrame(() => viewer.scheduleRender());
+// The AI side bar starts hidden; it slides out when you ask the AI something.
+let sidebarOpen = false;
+function setSidebar(open) {
+  sidebarOpen = open;
+  document.body.classList.toggle('no-sidebar', !open);
+  $('#btn-sidebar').classList.toggle('on', open);
+  requestAnimationFrame(() => { viewer.centerHorizontally(); viewer.scheduleRender(); });
 }
-$('#btn-sidebar').addEventListener('click', () => { settings.sidebar = !settings.sidebar; saveSettings(settings); applySidebar(); });
+$('#btn-sidebar').addEventListener('click', () => setSidebar(!sidebarOpen));
+$('#sidebar-close').addEventListener('click', () => setSidebar(false));
 
 function showTab(name) {
   for (const t of document.querySelectorAll('.tab')) t.classList.toggle('active', t.dataset.tab === name);
@@ -252,6 +256,16 @@ function doNote(anchor) {
   hideMenus();
 }
 
+// A plain single click on the paper switches between line focus and normal
+// reading. Drags (selections), double-clicks (word selection), clicks on a
+// highlight, and clicks that only close an open menu don't count.
+let downAt = null;
+let clickTimer = 0;
+$('#pages').addEventListener('mousedown', (e) => {
+  clearTimeout(clickTimer);
+  downAt = { x: e.clientX, y: e.clientY, popupOpen: !menu.hidden || !trPop.hidden };
+});
+
 $('#pages').addEventListener('mouseup', (e) => {
   if (e.button !== 0) return;
   setTimeout(() => {
@@ -263,10 +277,26 @@ $('#pages').addEventListener('mouseup', (e) => {
     const x = (e.clientX - hit.r.left) / hit.r.width;
     const y = (e.clientY - hit.r.top) / hit.r.height;
     const a = annotationAt(state.annotations, hit.p.num, x, y);
-    if (a) showAnnotationMenu(a, new DOMRect(e.clientX - 1, e.clientY - 10, 2, 20));
-    else hideMenus();
+    if (a) { showAnnotationMenu(a, new DOMRect(e.clientX - 1, e.clientY - 10, 2, 20)); return; }
+    const wasPopup = downAt?.popupOpen;
+    hideMenus();
+    const moved = !downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4;
+    if (moved || wasPopup || e.detail !== 1) return;
+    // wait a moment so the first click of a double-click doesn't toggle
+    clickTimer = setTimeout(() => {
+      if (window.getSelection()?.isCollapsed === false) return;
+      toggleFocus(e.clientX, e.clientY, hit.p);
+    }, 280);
   }, 0);
 });
+
+function toggleFocus(clientX, clientY, page) {
+  settings.focus = !settings.focus;
+  saveSettings(settings);
+  applyFocus();
+  if (settings.focus && page) viewer.focusAt(page, clientX, clientY);
+  toast(settings.focus ? 'Line focus on · 聚焦模式' : 'Normal reading · 普通模式', 1200);
+}
 
 document.addEventListener('mousedown', (e) => {
   if (!menu.hidden && !menu.contains(e.target)) hideMenus();
@@ -334,7 +364,7 @@ function askAbout(anchor) {
   const chip = $('#quote-chip');
   chip.querySelector('.quote-text').textContent = anchor.text;
   chip.hidden = false;
-  if (!settings.sidebar) { settings.sidebar = true; saveSettings(settings); applySidebar(); }
+  setSidebar(true);
   showTab('chat');
   chatInput.focus();
 }
@@ -575,6 +605,12 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && settings.focus && viewer.pdf && document.activeElement?.tagName !== 'SELECT') {
+    e.preventDefault();
+    hideMenus();
+    viewer.step(e.key === 'ArrowDown' ? 1 : -1);
+    return;
+  }
   const key = e.key.toLowerCase();
   if (key === 'f') { settings.focus = !settings.focus; saveSettings(settings); applyFocus(); return; }
   if (!menu.hidden && menuAnchor) {
@@ -590,7 +626,7 @@ document.addEventListener('keydown', (e) => {
 applyTheme();
 applyFont();
 applyFocus();
-applySidebar();
+setSidebar(false);
 renderChat();
 notes.renderList();
 

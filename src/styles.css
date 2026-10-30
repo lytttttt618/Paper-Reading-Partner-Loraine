@@ -139,6 +139,8 @@ textarea:focus, input:focus, select:focus { outline: 2px solid color-mix(in srgb
   font-size: var(--ui-font);
 }
 body.no-sidebar .sidebar { display: none; }
+.sidebar { animation: slide-in 0.18s ease-out; }
+@keyframes slide-in { from { transform: translateX(24px); opacity: 0; } }
 
 .empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; }
 .empty-card {
@@ -157,8 +159,18 @@ body.no-sidebar .sidebar { display: none; }
 button.big { font-size: 16px; padding: 9px 22px; margin: 10px 0 4px; }
 
 /* ---------------------------------------------------------------- pages */
-.pages { padding: 24px 24px 60px; display: flex; flex-direction: column; align-items: center; gap: 22px; }
-.page-row { display: flex; align-items: flex-start; gap: 14px; }
+/* The page is centred in the reading area; its notes margin hangs off the
+   right edge, with matching padding on both sides so the centring holds. */
+.pages {
+  padding: 24px calc(var(--margin-w) + 36px) 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  width: max-content;
+  min-width: 100%;
+}
+.page-row { position: relative; }
 .page {
   position: relative;
   background: var(--page-bg);
@@ -191,7 +203,7 @@ button.big { font-size: 16px; padding: 9px 22px; margin: 10px 0 4px; }
 .viewer.focusing .page:not(.focus-active) .focus-layer { background: var(--dim); }
 
 /* notes margin beside each page */
-.margin { position: relative; width: var(--margin-w); flex-shrink: 0; font-size: var(--ui-font); }
+.margin { position: absolute; top: 0; left: calc(100% + 14px); width: var(--margin-w); font-size: var(--ui-font); }
 .note-card {
   position: absolute;
   left: 0;
@@ -235,6 +247,7 @@ button.big { font-size: 16px; padding: 9px 22px; margin: 10px 0 4px; }
 .tabs { display: flex; border-bottom: 1px solid var(--border); font-size: 14px; }
 .tab { flex: 1; border: 0; border-radius: 0; background: transparent; padding: 10px 6px; color: var(--muted); border-bottom: 2px solid transparent; }
 .tab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+.tab-close { flex: 0 0 auto; padding: 0 12px; font-size: 15px; }
 .count { background: var(--panel-2); border-radius: 10px; padding: 0 7px; font-size: 12px; margin-left: 4px; }
 .tab-panel { display: none; flex: 1; min-height: 0; flex-direction: column; }
 .tab-panel.active { display: flex; }

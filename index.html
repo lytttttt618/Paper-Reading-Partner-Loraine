@@ -51,7 +51,7 @@
         </div>
       </div>
       <button id="btn-settings" title="Settings: ChatGPT API key, model, translation">Settings</button>
-      <button id="btn-sidebar" class="toggle on" title="Show / hide the AI side bar">Side bar</button>
+      <button id="btn-sidebar" class="toggle" title="Show / hide the AI assistant and notes list">AI · 助手</button>
     </div>
   </header>
 
@@ -64,7 +64,7 @@
           <button id="btn-open-2" class="primary big">Choose a PDF…</button>
           <p class="muted">or drag &amp; drop a PDF file here</p>
           <ul class="tips">
-            <li><b>Line focus</b> follows your mouse and greys out the rest.</li>
+            <li><b>Line focus</b> follows your mouse and greys out the rest. <b>Click</b> the paper to switch it on/off; <b>↑ / ↓</b> move line by line.</li>
             <li><b>Double-click</b> a word or <b>select</b> text → Translate · Ask AI · Highlight · Note.</li>
             <li>Notes support Markdown and LaTeX: <code>$E=mc^2$</code>, <code>$$\int_0^1 x\,dx$$</code>.</li>
             <li>Everything is saved automatically in this browser.</li>
@@ -78,6 +78,7 @@
       <div class="tabs">
         <button class="tab active" data-tab="chat">AI assistant · AI 助手</button>
         <button class="tab" data-tab="notes">Notes · 笔记 <span id="notes-count" class="count">0</span></button>
+        <button id="sidebar-close" class="x tab-close" title="Hide the side bar · 收起">✕</button>
       </div>
 
       <div id="tab-chat" class="tab-panel active">

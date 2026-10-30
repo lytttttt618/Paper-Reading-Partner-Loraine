@@ -187,7 +187,8 @@ export class AnnotationLayer {
       card.style.top = `${top}px`;
       next = top + card.offsetHeight + 8;
     }
-    p.margin.style.minHeight = `${Math.max(H, next)}px`;
+    // the margin sits outside the row's flow: grow the row so long notes don't run into the next page
+    p.row.style.minHeight = `${Math.max(H, next)}px`;
   }
 
   layoutAll() {

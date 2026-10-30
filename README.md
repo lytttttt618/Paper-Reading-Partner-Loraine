@@ -6,12 +6,12 @@ A focused PDF reader for research papers, built for non-native English readers w
 
 | | |
 |---|---|
-| **Line focus · 聚焦** | The line under your mouse is outlined and the rest of the paper is greyed out, so you can always find your place. Two-column papers are handled column by column. Toggle with **F**. |
+| **Line focus · 聚焦** | The line under your mouse is outlined and the rest of the paper is greyed out, so you can always find your place. Two-column papers are handled column by column. **Click** the paper (or press **F**) to switch between focus mode and normal reading. Use **↑ / ↓** to move the focus one line at a time, in reading order across columns and pages. |
 | **Translate · 翻译** | Double-click a word (or select a sentence or paragraph) and choose **Translate**. Single words also show dictionary meanings. Uses Google Translate for free, or ChatGPT for context-aware translation. |
-| **Ask AI · 问 AI** | Select text and choose **Ask AI**. The explanation streams into the right side bar, where you can keep asking follow-up questions. The AI sees the selected passage plus the surrounding text on that page. |
+| **Ask AI · 问 AI** | Select text and choose **Ask AI**. The AI side bar slides out with the explanation, and you can keep asking follow-up questions there. Hide it with **✕**, and bring it back with the **AI · 助手** button. The AI sees the selected passage plus the surrounding text on that page. |
 | **Highlight · 高亮** | Five highlight colours. Click a highlight to recolour it, add a note, or delete it. |
 | **Notes · 笔记** | Notes appear right beside the paragraph they belong to. They support **Markdown + LaTeX** (`$\alpha$`, `$$\sum_i x_i$$`) with a live preview. |
-| **Reading comfort** | Zoom (buttons, Ctrl +/−, Ctrl + mouse wheel, Fit), adjustable text size for notes and AI answers, and **Day / Eye-care (护眼) / Night (夜间)** modes. |
+| **Reading comfort** | The page is centred on screen with your notes beside it. Zoom (buttons, Ctrl +/−, Ctrl + mouse wheel, Fit), adjustable text size for notes and AI answers, and **Day / Eye-care (护眼) / Night (夜间)** modes. |
 | **Export · 导出** | Download a standard PDF with real highlight annotations, your notes rendered in a margin next to each page, and the AI conversation as an appendix. It opens in Acrobat, Preview, Edge, Chrome, Zotero and other PDF apps. You can also export notes as Markdown (for Obsidian or Typora) or save a project file to continue later. |
 | **Auto-save** | Highlights, notes and chats are saved in your browser per paper. Re-opening the same PDF restores everything. |
 
@@ -50,7 +50,8 @@ Your key is stored only in your browser's local storage and is sent only to the 
 
 | Key | Action |
 |---|---|
-| `F` | Toggle line focus |
+| Click on the paper / `F` | Toggle line focus |
+| `↑` / `↓` | Move the focused line up / down |
 | `T` / `A` / `H` / `N` | With the selection menu open: Translate / Ask AI / Highlight / Note |
 | `Ctrl` `+` / `Ctrl` `−` / `Ctrl` `0` | Zoom in / out / fit width |
 | `Ctrl` `Enter` | Save the note you're editing |
