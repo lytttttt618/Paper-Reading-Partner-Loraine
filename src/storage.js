@@ -3,9 +3,8 @@
 const SETTINGS_KEY = 'prp:settings';
 
 export const DEFAULT_SETTINGS = {
-  apiKey: '',
-  baseUrl: 'https://api.openai.com/v1',
-  model: 'gpt-4o-mini',
+  claudeKey: '',
+  claudeModel: 'claude-opus-5-5',
   replyLang: 'zh',
   translateProvider: 'auto',
   targetLang: 'zh-CN',

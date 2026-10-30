@@ -62,7 +62,7 @@
           <input id="json-input" type="file" accept="application/json,.json" hidden />
         </div>
       </div>
-      <button id="btn-settings" title="Settings: ChatGPT API key, model, translation">Settings</button>
+      <button id="btn-settings" title="Settings: Claude API key, model, translation">Settings</button>
       <button id="btn-sidebar" class="toggle" title="Show / hide the AI assistant and notes list">AI · 助手</button>
     </div>
   </header>
@@ -148,16 +148,12 @@
   <dialog id="settings-dlg">
     <form method="dialog" class="dlg">
       <h2>Settings · 设置</h2>
-      <label>OpenAI API key
-        <input id="set-key" type="password" autocomplete="off" placeholder="sk-…" />
-        <small>Stored only in this browser. It's sent only to the API address below.</small>
+      <label>Claude API key
+        <input id="set-key" type="password" autocomplete="off" placeholder="sk-ant-…" />
+        <small>Create one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>. Stored only in this browser and sent only to Anthropic.</small>
       </label>
-      <label>API base URL
-        <input id="set-base" type="text" placeholder="https://api.openai.com/v1" />
-        <small>Any OpenAI-compatible endpoint works (e.g. a proxy or another provider).</small>
-      </label>
-      <label>Model
-        <input id="set-model" type="text" placeholder="gpt-4o-mini" />
+      <label>Claude model
+        <select id="set-model"></select>
       </label>
       <label>AI answer language · 回答语言
         <select id="set-lang">
@@ -168,9 +164,9 @@
       </label>
       <label>Translate with · 翻译方式
         <select id="set-tr">
-          <option value="auto">Auto: Google Translate, falls back to ChatGPT</option>
+          <option value="auto">Auto: Google Translate, falls back to Claude</option>
           <option value="google">Google Translate (free, no key)</option>
-          <option value="ai">ChatGPT (uses your API key, better for context)</option>
+          <option value="ai">Claude (uses your API key, better for context)</option>
         </select>
       </label>
       <label>Translate into · 目标语言

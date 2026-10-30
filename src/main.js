@@ -4,7 +4,7 @@ import './styles.css';
 
 import { Viewer } from './viewer.js';
 import { AnnotationLayer, COLORS, NOTE_COLOR, annotationAt, selectionAnchor, surroundingText } from './annotations.js';
-import { chatStream, systemPrompt, translate } from './ai.js';
+import { CLAUDE_MODELS, DEFAULT_MODEL, chatStream, systemPrompt, translate } from './ai.js';
 import { renderRich, escapeHtml } from './rich.js';
 import { exportPdf, exportMarkdown, exportProject } from './export.js';
 import { loadSettings, saveSettings, idbGet, idbSet } from './storage.js';
@@ -227,7 +227,7 @@ function showSelectionMenu(anchor) {
   menuAnn = null;
   menu.replaceChildren(
     menuButton('Translate<small>翻译</small>', 'Translate (T)', () => doTranslate(anchor)),
-    menuButton('Ask AI<small>问 AI</small>', 'Ask ChatGPT (A)', () => askAbout(anchor)),
+    menuButton('Ask AI<small>问 AI</small>', 'Ask Claude (A)', () => askAbout(anchor)),
     colorButtons((c) => doHighlight(anchor, c)),
     menuButton('Note<small>笔记</small>', 'Add a note (N)', () => doNote(anchor)),
     menuButton('Copy<small>复制</small>', 'Copy', () => { navigator.clipboard?.writeText(anchor.text); hideMenus(); toast('Copied'); }),
@@ -240,7 +240,7 @@ function showAnnotationMenu(a, rect) {
   menuAnchor = { text: a.text, rects: a.rects, clientRect: rect };
   menu.replaceChildren(
     menuButton('Translate<small>翻译</small>', 'Translate', () => doTranslate(menuAnchor)),
-    menuButton('Ask AI<small>问 AI</small>', 'Ask ChatGPT', () => askAbout(menuAnchor)),
+    menuButton('Ask AI<small>问 AI</small>', 'Ask Claude', () => askAbout(menuAnchor)),
     colorButtons((c) => { notes.update(a, { color: c }); hideMenus(); }, a.color),
     menuButton(a.note !== null ? 'Edit note<small>编辑</small>' : 'Note<small>笔记</small>', 'Note', () => { hideMenus(); notes.startEdit(a); }),
     menuButton('Delete<small>删除</small>', 'Remove highlight', () => {
@@ -418,7 +418,7 @@ function renderChat() {
     chatLog.innerHTML = `<div class="chat-empty">
       <p>Select text in the paper and choose <b>Ask AI</b>, or just type a question below.</p>
       <p class="muted">选中论文中的文字并点击 “Ask AI”，或直接在下方提问。</p>
-      ${settings.apiKey ? '' : '<p class="warn">Add your OpenAI API key in <b>Settings</b> to use the AI assistant.</p>'}</div>`;
+      ${settings.claudeKey ? '' : '<p class="warn">Add your Claude API key in <b>Settings</b> to use the AI assistant.</p>'}</div>`;
     return;
   }
   chatLog.replaceChildren(...state.chat.map(messageEl));
@@ -450,9 +450,9 @@ async function sendChat(text) {
   text = (text ?? chatInput.value).trim();
   if (!text && pendingQuote) text = 'Please explain this passage.';
   if (!text || chatAbort) return;
-  if (!settings.apiKey) {
+  if (!settings.claudeKey) {
     openSettings();
-    toast('Please add your OpenAI API key first.');
+    toast('Please add your Claude API key first.');
     return;
   }
   const quote = pendingQuote;
@@ -519,9 +519,9 @@ $('#chat-clear').addEventListener('click', () => {
 
 const dlg = $('#settings-dlg');
 function openSettings() {
-  $('#set-key').value = settings.apiKey;
-  $('#set-base').value = settings.baseUrl;
-  $('#set-model').value = settings.model;
+  $('#set-key').value = settings.claudeKey;
+  $('#set-model').replaceChildren(...CLAUDE_MODELS.map((m) => new Option(m.label, m.id)));
+  $('#set-model').value = CLAUDE_MODELS.some((m) => m.id === settings.claudeModel) ? settings.claudeModel : DEFAULT_MODEL;
   $('#set-lang').value = settings.replyLang;
   $('#set-tr').value = settings.translateProvider;
   $('#set-target').value = settings.targetLang;
@@ -530,9 +530,8 @@ function openSettings() {
 $('#btn-settings').addEventListener('click', openSettings);
 dlg.addEventListener('close', () => {
   if (dlg.returnValue !== 'save') return;
-  settings.apiKey = $('#set-key').value.trim();
-  settings.baseUrl = $('#set-base').value.trim() || 'https://api.openai.com/v1';
-  settings.model = $('#set-model').value.trim() || 'gpt-4o-mini';
+  settings.claudeKey = $('#set-key').value.trim();
+  settings.claudeModel = $('#set-model').value || DEFAULT_MODEL;
   settings.replyLang = $('#set-lang').value;
   settings.translateProvider = $('#set-tr').value;
   settings.targetLang = $('#set-target').value;

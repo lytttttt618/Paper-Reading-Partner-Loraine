@@ -7,7 +7,7 @@ A focused PDF reader for research papers, built for non-native English readers w
 | | |
 |---|---|
 | **Line focus · 聚焦** | The line under your mouse is outlined and the rest of the paper is greyed out, so you can always find your place. Two-column papers are handled column by column. **Click** the paper (or press **F**) to switch between focus mode and normal reading. Choose how many lines stay highlighted (**1–10**) from the toolbar or with number keys **1–9, 0 = 10**. Use **↑ / ↓** to move the focus one line at a time, in reading order across columns and pages. |
-| **Translate · 翻译** | Double-click a word (or select a sentence or paragraph) and choose **Translate**. Single words also show dictionary meanings. Uses Google Translate for free, or ChatGPT for context-aware translation. |
+| **Translate · 翻译** | Double-click a word (or select a sentence or paragraph) and choose **Translate**. Single words also show dictionary meanings. Uses Google Translate for free, or Claude for context-aware translation. |
 | **Ask AI · 问 AI** | Select text and choose **Ask AI**. The AI side bar slides out with the explanation, and you can keep asking follow-up questions there. Hide it with **✕**, and bring it back with the **AI · 助手** button. The AI sees the selected passage plus the surrounding text on that page. |
 | **Highlight · 高亮** | Five highlight colours. Click a highlight to recolour it, add a note, or delete it. |
 | **Notes · 笔记** | Notes appear right beside the paragraph they belong to. They support **Markdown + LaTeX** (`$\alpha$`, `$$\sum_i x_i$$`) with a live preview. |
@@ -35,16 +35,24 @@ npm run preview    # try the built version locally
 
 This repository includes a GitHub Actions workflow that publishes the app to GitHub Pages. To turn it on, go to **Settings → Pages** and set **Source** to **GitHub Actions**.
 
-## Using ChatGPT
+## Using Claude
 
-Open **Settings** and paste an OpenAI API key (https://platform.openai.com/api-keys). You can also set:
+The AI assistant and AI translation use Claude through the Anthropic API.
 
-- **Model** — defaults to `gpt-4o-mini`; any chat model name your account supports works.
-- **API base URL** — any OpenAI-compatible endpoint, which is useful if `api.openai.com` isn't reachable from your network.
-- **Answer language** — Chinese, bilingual, or English.
-- **Translate with** — Google (free), ChatGPT, or Auto (Google first, then ChatGPT if Google is unreachable).
+> A **Claude Pro / Max subscription doesn't include API access.** The subscription covers claude.ai and the Claude apps; the API is billed separately, pay-as-you-go, in the Anthropic Console.
 
-Your key is stored only in your browser's local storage and is sent only to the API address you configure.
+1. Go to https://console.anthropic.com and sign in. You can use the same email as your Claude account.
+2. **Billing:** add a payment method and buy some credit (for example $5). Under **Limits** you can also set a monthly spend limit.
+3. **API keys:** click **Create Key**, and copy the key (`sk-ant-…`). It's shown only once.
+4. In the app, open **Settings**, paste the key, pick a model, and click **Save**.
+
+Settings:
+
+- **Claude model:** Claude Opus 5.5 (default, the best explanations), Sonnet 5.5 (faster and cheaper), Haiku 5.5 (fastest and cheapest), or Fable 5.1 (most capable, most expensive).
+- **Answer language:** Chinese, bilingual, or English.
+- **Translate with:** Google (free), Claude, or Auto (Google first, then Claude if Google is unreachable).
+
+Your key is stored only in your browser's local storage, and the app sends it only to Anthropic (`api.anthropic.com`).
 
 ## Keyboard shortcuts
 
@@ -61,7 +69,7 @@ Your key is stored only in your browser's local storage and is sent only to the 
 
 ## Tech
 
-Vite with plain JavaScript. It uses [pdf.js](https://mozilla.github.io/pdf.js/) for rendering, [pdf-lib](https://pdf-lib.js.org) for export, [KaTeX](https://katex.org) and [marked](https://marked.js.org) for notes, and [html2canvas](https://html2canvas.hertzen.com) to render notes into the exported PDF. Everything runs in the browser; there's no server.
+Vite with plain JavaScript. It uses [pdf.js](https://mozilla.github.io/pdf.js/) for rendering, [pdf-lib](https://pdf-lib.js.org) for export, [KaTeX](https://katex.org) and [marked](https://marked.js.org) for notes, and [html2canvas](https://html2canvas.hertzen.com) to render notes into the exported PDF, and the [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-typescript) for Claude. Everything runs in the browser; there's no server.
 
 ```
 src/
@@ -69,7 +77,7 @@ src/
   viewer.js       PDF rendering, lazy loading, zoom, line detection and the focus band
   annotations.js  highlights, margin notes, notes list
   export.js       annotated-PDF / Markdown / project export
-  ai.js           ChatGPT streaming and translation
+  ai.js           Claude (Anthropic SDK) streaming and translation
   rich.js         Markdown + LaTeX rendering
   storage.js      settings (localStorage) and per-paper data (IndexedDB)
 ```

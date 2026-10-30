@@ -1,4 +1,6 @@
-// ChatGPT (OpenAI-compatible) streaming chat + translation helpers.
+import Anthropic from '@anthropic-ai/sdk';
+
+// Claude (Anthropic API) streaming chat + translation helpers.
 
 const LANG_RULE = {
   zh: 'Always answer in Simplified Chinese (简体中文). Keep important technical terms in English in parentheses the first time they appear.',
@@ -8,7 +10,7 @@ const LANG_RULE = {
 
 export function systemPrompt(settings, paperTitle) {
   return [
-    'You are a patient, precise reading partner who helps a Chinese graduate student read English research papers.',
+    'You are Claude, a patient, precise reading partner who helps a Chinese graduate student read English research papers.',
     paperTitle ? `The paper being read is: "${paperTitle}".` : '',
     'Explain clearly, define jargon, and connect the passage to the rest of the paper when the provided context allows.',
     'Use Markdown. Write math in LaTeX using $...$ for inline and $$...$$ for display formulas.',
@@ -16,50 +18,89 @@ export function systemPrompt(settings, paperTitle) {
   ].filter(Boolean).join('\n');
 }
 
-/** Stream a chat completion. Calls onDelta(fullTextSoFar) as tokens arrive and resolves with the full text. */
+export const CLAUDE_MODELS = [
+  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5 — best explanations (default)' },
+  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5 — faster, lower cost' },
+  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5 — fastest, cheapest' },
+  { id: 'claude-fable-5-1', label: 'Claude Fable 5.1 — most capable, most expensive' },
+];
+export const DEFAULT_MODEL = 'claude-opus-5-5';
+
+// Models that support server-side refusal fallbacks (Haiku has none).
+const FALLBACK_MODELS = new Set(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-fable-5-1']);
+
+let client = null;
+let clientKey = '';
+function getClient(apiKey) {
+  if (!client || clientKey !== apiKey) {
+    // The key lives only in this browser (Settings) and requests go straight to
+    // Anthropic, so browser use is intended here.
+    client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+    clientKey = apiKey;
+  }
+  return client;
+}
+
+function friendlyError(e) {
+  if (e instanceof Anthropic.AuthenticationError) return new Error('Claude rejected the API key (401). Check the key in Settings — it should start with "sk-ant-".');
+  if (e instanceof Anthropic.PermissionDeniedError) return new Error(`Your API key isn't allowed to do this (403): ${e.message}`);
+  if (e instanceof Anthropic.NotFoundError) return new Error(`Model not found (404). Pick another model in Settings. ${e.message}`);
+  if (e instanceof Anthropic.RateLimitError) return new Error('Too many requests (429) — wait a moment and try again.');
+  if (e instanceof Anthropic.BadRequestError) return new Error(`Request rejected (400): ${e.message}. If it mentions your credit balance, add credit at console.anthropic.com → Billing.`);
+  if (e instanceof Anthropic.APIConnectionError) return new Error('Could not reach api.anthropic.com. Check your internet connection (or VPN).');
+  if (e instanceof Anthropic.APIError) return new Error(`Claude API error ${e.status ?? ''}: ${e.message}`);
+  return e;
+}
+
+/**
+ * Stream a Claude reply. `messages` may start with a {role: 'system'} entry,
+ * which becomes the system prompt. Calls onDelta(fullTextSoFar) as text arrives
+ * and resolves with the full text.
+ */
 export async function chatStream({ settings, messages, onDelta, signal }) {
-  if (!settings.apiKey) {
-    const err = new Error('No API key set. Open Settings and paste your OpenAI API key.');
+  if (!settings.claudeKey) {
+    const err = new Error('No Claude API key set. Open Settings and paste your Anthropic API key.');
     err.code = 'NO_KEY';
     throw err;
   }
-  const base = (settings.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '');
-  const res = await fetch(`${base}/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
-    body: JSON.stringify({ model: settings.model || 'gpt-4o-mini', messages, stream: true }),
-    signal,
-  });
-  if (!res.ok) {
-    let msg = await res.text();
-    try { msg = JSON.parse(msg).error?.message || msg; } catch { /* keep raw text */ }
-    throw new Error(`API error ${res.status}: ${msg}`);
+  const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n');
+  const turns = messages.filter((m) => m.role !== 'system');
+  while (turns.length && turns[0].role !== 'user') turns.shift(); // the conversation must start with the user
+
+  const model = settings.claudeModel || DEFAULT_MODEL;
+  const params = { model, max_tokens: 64000, system, messages: turns };
+  if (FALLBACK_MODELS.has(model)) {
+    // if a safety classifier declines, Anthropic retries on its recommended fallback model
+    params.betas = ['server-side-fallback-2026-07-01'];
+    params.fallbacks = 'default';
   }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = '';
+
   let full = '';
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let nl;
-    while ((nl = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, nl).trim();
-      buf = buf.slice(nl + 1);
-      if (!line.startsWith('data:')) continue;
-      const data = line.slice(5).trim();
-      if (data === '[DONE]') return full;
-      try {
-        const delta = JSON.parse(data).choices?.[0]?.delta?.content;
-        if (delta) {
-          full += delta;
-          onDelta?.(full);
-        }
-      } catch { /* ignore keep-alive / partial lines */ }
+  try {
+    const stream = getClient(settings.claudeKey).beta.messages.stream(params, { signal });
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        full += event.delta.text;
+        onDelta?.(full);
+      }
     }
+    const final = await stream.finalMessage();
+    if (final.stop_reason === 'refusal') {
+      full += `${full ? '\n\n' : ''}*Claude declined to answer this request${final.stop_details?.explanation ? `: ${final.stop_details.explanation}` : '.'}*`;
+      onDelta?.(full);
+    } else if (final.stop_reason === 'max_tokens') {
+      full += '\n\n*(answer cut off — it reached the length limit)*';
+      onDelta?.(full);
+    }
+    return full;
+  } catch (e) {
+    if (e instanceof Anthropic.APIUserAbortError || e?.name === 'AbortError') {
+      const abort = new Error('aborted');
+      abort.name = 'AbortError';
+      throw abort;
+    }
+    throw friendlyError(e);
   }
-  return full;
 }
 
 const TARGET_NAME = { 'zh-CN': 'Simplified Chinese (简体中文)', 'zh-TW': 'Traditional Chinese (繁體中文)', en: 'English' };
@@ -91,16 +132,16 @@ function aiTranslate(text, settings, context, onDelta, signal) {
 export async function translate(text, settings, { context, onDelta, signal } = {}) {
   const provider = settings.translateProvider;
   if (provider === 'ai') {
-    return { text: await aiTranslate(text, settings, context, onDelta, signal), source: 'ChatGPT' };
+    return { text: await aiTranslate(text, settings, context, onDelta, signal), source: 'Claude' };
   }
   try {
     const out = await googleTranslate(text, settings.targetLang || 'zh-CN');
     onDelta?.(out);
     return { text: out, source: 'Google' };
   } catch (e) {
-    if (provider === 'auto' && settings.apiKey) {
-      return { text: await aiTranslate(text, settings, context, onDelta, signal), source: 'ChatGPT' };
+    if (provider === 'auto' && settings.claudeKey) {
+      return { text: await aiTranslate(text, settings, context, onDelta, signal), source: 'Claude' };
     }
-    throw new Error(`${e.message}. Google Translate may be unreachable from your network — add an API key in Settings and choose ChatGPT translation.`);
+    throw new Error(`${e.message}. Google Translate may be unreachable from your network — add a Claude API key in Settings and choose Claude translation.`);
   }
 }
