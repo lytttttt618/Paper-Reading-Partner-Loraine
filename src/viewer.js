@@ -141,6 +141,7 @@ export class Viewer {
     this.pages = [];
     this.pdf = null;
     this.focusEnabled = true;
+    this.focusLines = 1;
     this.mouseDown = false;
     this.activePage = null;
     this.frame = 0;
@@ -404,12 +405,32 @@ export class Viewer {
       this.activePage = p;
     }
     this.scrollEl.classList.add('focusing');
+    // the band starts at L and covers the next focusLines - 1 lines of the same column
+    const box = { ...L };
+    const order = readingOrder(p.lines);
+    let prev = L;
+    for (let i = order.indexOf(L) + 1, n = 1; n < this.focusLines && i < order.length; i++, n++) {
+      const M = order[i];
+      const overlap = Math.min(M.r, prev.r) - Math.max(M.l, prev.l);
+      const gap = M.t - prev.b;
+      if (overlap < 0.3 * Math.min(M.r - M.l, prev.r - prev.l) || gap > 3 * (prev.b - prev.t) || gap < -0.002) break;
+      box.l = Math.min(box.l, M.l);
+      box.r = Math.max(box.r, M.r);
+      box.b = M.b;
+      prev = M;
+    }
     const padY = (L.b - L.t) * 0.22;
     const s = p.band.style;
-    s.left = `calc(${(L.l * 100).toFixed(3)}% - 5px)`;
-    s.width = `calc(${((L.r - L.l) * 100).toFixed(3)}% + 10px)`;
-    s.top = `${((L.t - padY) * 100).toFixed(3)}%`;
-    s.height = `${((L.b - L.t + 2 * padY) * 100).toFixed(3)}%`;
+    s.left = `calc(${(box.l * 100).toFixed(3)}% - 5px)`;
+    s.width = `calc(${((box.r - box.l) * 100).toFixed(3)}% + 10px)`;
+    s.top = `${((box.t - padY) * 100).toFixed(3)}%`;
+    s.height = `${((box.b - box.t + 2 * padY) * 100).toFixed(3)}%`;
+  }
+
+  /** How many lines the focus band shows at once (1–10). */
+  setFocusLines(n) {
+    this.focusLines = Math.max(1, Math.min(10, n | 0));
+    if (this.current && this.activePage) this.showBand(this.current.p, this.current.L);
   }
 
   /** Move the focus band to the next (dir = 1) or previous (dir = -1) line in reading order. */

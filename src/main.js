@@ -148,6 +148,17 @@ function applyFocus() {
 }
 $('#btn-focus').addEventListener('click', () => { settings.focus = !settings.focus; saveSettings(settings); applyFocus(); });
 
+function setFocusLines(n) {
+  settings.focusLines = Math.max(1, Math.min(10, n));
+  saveSettings(settings);
+  $('#focus-lines').value = String(settings.focusLines);
+  viewer.setFocusLines(settings.focusLines);
+}
+$('#focus-lines').addEventListener('change', (e) => {
+  setFocusLines(+e.target.value);
+  e.target.blur(); // give the arrow keys back to the paper
+});
+
 function applyTheme() {
   document.documentElement.dataset.theme = settings.theme;
   $('#theme').value = settings.theme;
@@ -612,6 +623,11 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   const key = e.key.toLowerCase();
+  if (/^[0-9]$/.test(key) && menu.hidden) {
+    setFocusLines(key === '0' ? 10 : +key);
+    toast(`Highlight ${settings.focusLines} line${settings.focusLines > 1 ? 's' : ''} · ${settings.focusLines} 行`, 1000);
+    return;
+  }
   if (key === 'f') { settings.focus = !settings.focus; saveSettings(settings); applyFocus(); return; }
   if (!menu.hidden && menuAnchor) {
     if (key === 't') doTranslate(menuAnchor);
@@ -627,6 +643,7 @@ applyTheme();
 applyFont();
 applyFocus();
 setSidebar(false);
+setFocusLines(settings.focusLines || 1);
 renderChat();
 notes.renderList();
 

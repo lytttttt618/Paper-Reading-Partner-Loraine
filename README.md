@@ -6,7 +6,7 @@ A focused PDF reader for research papers, built for non-native English readers w
 
 | | |
 |---|---|
-| **Line focus · 聚焦** | The line under your mouse is outlined and the rest of the paper is greyed out, so you can always find your place. Two-column papers are handled column by column. **Click** the paper (or press **F**) to switch between focus mode and normal reading. Use **↑ / ↓** to move the focus one line at a time, in reading order across columns and pages. |
+| **Line focus · 聚焦** | The line under your mouse is outlined and the rest of the paper is greyed out, so you can always find your place. Two-column papers are handled column by column. **Click** the paper (or press **F**) to switch between focus mode and normal reading. Choose how many lines stay highlighted (**1–10**) from the toolbar or with number keys **1–9, 0 = 10**. Use **↑ / ↓** to move the focus one line at a time, in reading order across columns and pages. |
 | **Translate · 翻译** | Double-click a word (or select a sentence or paragraph) and choose **Translate**. Single words also show dictionary meanings. Uses Google Translate for free, or ChatGPT for context-aware translation. |
 | **Ask AI · 问 AI** | Select text and choose **Ask AI**. The AI side bar slides out with the explanation, and you can keep asking follow-up questions there. Hide it with **✕**, and bring it back with the **AI · 助手** button. The AI sees the selected passage plus the surrounding text on that page. |
 | **Highlight · 高亮** | Five highlight colours. Click a highlight to recolour it, add a note, or delete it. |
@@ -52,6 +52,7 @@ Your key is stored only in your browser's local storage and is sent only to the 
 |---|---|
 | Click on the paper / `F` | Toggle line focus |
 | `↑` / `↓` | Move the focused line up / down |
+| `1`–`9`, `0` | Highlight 1–9 or 10 lines at once |
 | `T` / `A` / `H` / `N` | With the selection menu open: Translate / Ask AI / Highlight / Note |
 | `Ctrl` `+` / `Ctrl` `−` / `Ctrl` `0` | Zoom in / out / fit width |
 | `Ctrl` `Enter` | Save the note you're editing |
