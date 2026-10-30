@@ -13,7 +13,8 @@ A focused PDF reader for research papers, built for non-native English readers w
 | **Notes · 笔记** | Notes appear right beside the paragraph they belong to. They support **Markdown + LaTeX** (`$\alpha$`, `$$\sum_i x_i$$`) with a live preview. |
 | **Reading comfort** | The page is centred on screen with your notes beside it. Zoom (buttons, Ctrl +/−, Ctrl + mouse wheel, Fit), adjustable text size for notes and AI answers, and **Day / Eye-care (护眼) / Night (夜间)** modes. |
 | **Export · 导出** | Download a standard PDF with real highlight annotations, your notes rendered in a margin next to each page, and the AI conversation as an appendix. It opens in Acrobat, Preview, Edge, Chrome, Zotero and other PDF apps. You can also export notes as Markdown (for Obsidian or Typora) or save a project file to continue later. |
-| **Auto-save** | Highlights, notes and chats are saved in your browser per paper. Re-opening the same PDF restores everything. |
+| **Library · 文库** | Every PDF you open is kept in the left side bar, together with its highlights, notes and AI chat, so you can reopen it later without uploading it again. Search by file name or title, remove papers you're done with, and hide or show the bar with **☰ 文库**. The last paper you read reopens automatically. |
+| **Auto-save** | Everything is saved automatically in this browser. Papers live only on this computer and in this browser; use **Export** or **More → Save project file** to keep a copy elsewhere. |
 
 ## Getting started
 
@@ -76,6 +77,7 @@ src/
   main.js         app wiring: toolbar, selection menu, translation, chat, settings, export
   viewer.js       PDF rendering, lazy loading, zoom, line detection and the focus band
   annotations.js  highlights, margin notes, notes list
+  library.js      saved papers (left side bar)
   export.js       annotated-PDF / Markdown / project export
   ai.js           Claude (Anthropic SDK) streaming and translation
   rich.js         Markdown + LaTeX rendering

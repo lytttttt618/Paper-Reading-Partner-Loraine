@@ -8,6 +8,7 @@ import { CLAUDE_MODELS, DEFAULT_MODEL, chatStream, systemPrompt, translate } fro
 import { renderRich, escapeHtml } from './rich.js';
 import { exportPdf, exportMarkdown, exportProject } from './export.js';
 import { loadSettings, saveSettings, idbGet, idbSet } from './storage.js';
+import { Library } from './library.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -35,13 +36,24 @@ function toast(msg, ms = 2600) {
 // ---------------------------------------------------------------- persistence
 
 let saveTimer;
+let pendingSave = null;
 function persist() {
   if (!state.docKey) return;
+  // snapshot now, so switching papers before the timer fires still saves to the right one
+  const key = state.docKey;
+  const data = { fileName: state.fileName, annotations: state.annotations, chat: state.chat, savedAt: Date.now() };
+  library.touch(key, { noteCount: state.annotations.length });
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    idbSet(`doc:${state.docKey}`, { fileName: state.fileName, annotations: state.annotations, chat: state.chat, savedAt: Date.now() });
-  }, 300);
+  pendingSave = () => idbSet(`doc:${key}`, data);
+  saveTimer = setTimeout(flushSave, 300);
 }
+function flushSave() {
+  clearTimeout(saveTimer);
+  const save = pendingSave;
+  pendingSave = null;
+  return save?.();
+}
+window.addEventListener('pagehide', flushSave);
 
 // ---------------------------------------------------------------- viewer & annotations
 
@@ -64,6 +76,12 @@ const notes = new AnnotationLayer({
 
 async function openPdf(bytes, fileName) {
   hideMenus();
+  await flushSave();
+  chatAbort?.abort();
+  trAbort?.abort();
+  trPop.hidden = true;
+  pendingQuote = null;
+  $('#quote-chip').hidden = true;
   toast('Opening…', 0);
   try {
     state.bytes = bytes;
@@ -85,9 +103,49 @@ async function openPdf(bytes, fileName) {
   $('#zoom-label').textContent = `${Math.round(viewer.scale * 100)}%`;
   notes.renderAll();
   renderChat();
-  idbSet('last', { bytes, fileName });
+  await library.add({
+    docKey: state.docKey, fileName, title: state.title, pages: viewer.pages.length, bytes, noteCount: state.annotations.length,
+  });
+  idbSet('lastDoc', state.docKey);
   toast(saved ? `Opened ${fileName} — your notes were restored` : `Opened ${fileName}`);
 }
+
+async function openFromLibrary(docKey) {
+  const item = library.get(docKey);
+  const bytes = await library.bytes(docKey);
+  if (!bytes) {
+    toast('This PDF is no longer stored in the browser. Please open the file again.', 4000);
+    return;
+  }
+  await openPdf(bytes, item?.fileName || 'paper.pdf');
+}
+
+async function deleteFromLibrary(item) {
+  const what = item.noteCount ? ` and its ${item.noteCount} highlight${item.noteCount === 1 ? '' : 's'}/notes and AI chat` : ' and its AI chat';
+  if (!confirm(`Remove “${item.fileName}”${what} from this browser?\n\nExport it first if you want to keep your notes. 删除后无法恢复。`)) return;
+  if (item.docKey === state.docKey) {
+    clearTimeout(saveTimer);
+    pendingSave = null;
+    chatAbort?.abort();
+    await viewer.close();
+    Object.assign(state, { docKey: null, fileName: '', title: '', bytes: null, annotations: [], chat: [] });
+    $('#empty').hidden = false;
+    document.title = 'Paper Reading Partner';
+    notes.renderList();
+    renderChat();
+    idbSet('lastDoc', null);
+  }
+  await library.remove(item.docKey);
+  toast(`Removed ${item.fileName}`);
+}
+
+const library = new Library({
+  listEl: $('#lib-list'),
+  searchEl: $('#lib-search'),
+  footerEl: $('#lib-usage'),
+  onOpen: openFromLibrary,
+  onDelete: deleteFromLibrary,
+});
 
 async function openFile(file) {
   if (!file) return;
@@ -100,6 +158,15 @@ async function openFile(file) {
 
 $('#btn-open').addEventListener('click', () => $('#file-input').click());
 $('#btn-open-2').addEventListener('click', () => $('#file-input').click());
+$('#lib-open').addEventListener('click', () => $('#file-input').click());
+
+function applyLibrary() {
+  document.body.classList.toggle('no-library', !settings.libraryOpen);
+  $('#btn-library').classList.toggle('on', settings.libraryOpen);
+  requestAnimationFrame(() => { viewer.centerHorizontally(); viewer.scheduleRender(); });
+}
+$('#btn-library').addEventListener('click', () => { settings.libraryOpen = !settings.libraryOpen; saveSettings(settings); applyLibrary(); });
+$('#library-close').addEventListener('click', () => { settings.libraryOpen = false; saveSettings(settings); applyLibrary(); });
 $('#file-input').addEventListener('change', (e) => {
   openFile(e.target.files[0]);
   e.target.value = '';
@@ -646,6 +713,18 @@ setFocusLines(settings.focusLines || 1);
 renderChat();
 notes.renderList();
 
-idbGet('last').then((last) => {
-  if (last?.bytes && !state.bytes) openPdf(new Uint8Array(last.bytes), last.fileName);
-});
+applyLibrary();
+(async () => {
+  await library.load();
+  const lastDoc = await idbGet('lastDoc');
+  if (lastDoc && library.get(lastDoc)) {
+    if (!state.bytes) await openFromLibrary(lastDoc);
+    return;
+  }
+  // papers opened before the library existed were kept under 'last'
+  const legacy = await idbGet('last');
+  if (legacy?.bytes && !state.bytes) {
+    await openPdf(new Uint8Array(legacy.bytes), legacy.fileName);
+    idbSet('last', null);
+  }
+})();

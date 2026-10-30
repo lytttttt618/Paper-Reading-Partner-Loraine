@@ -11,7 +11,8 @@
     <div class="brand">Paper Reading Partner</div>
 
     <div class="group">
-      <button id="btn-open" class="primary" title="Open a PDF (or drag & drop one anywhere)">Open PDF · 打开</button>
+      <button id="btn-library" class="toggle" title="Show / hide your saved papers (Library · 文库)">☰ 文库</button>
+      <button id="btn-open" class="primary" title="Open a PDF (or drag & drop one anywhere)">Open · 打开</button>
       <input id="file-input" type="file" accept="application/pdf,.pdf" hidden />
     </div>
 
@@ -29,18 +30,18 @@
     </div>
 
     <div class="group">
-      <button id="btn-focus" class="toggle" title="Highlight the line under the mouse and grey out the rest (F)">Line focus · 聚焦</button>
+      <button id="btn-focus" class="toggle" title="Highlight the line under the mouse and grey out the rest (F)">Focus · 聚焦</button>
       <select id="focus-lines" title="How many lines stay highlighted (keys 1–9, 0 = 10)">
-        <option value="1">1 line · 行</option>
-        <option value="2">2 lines · 行</option>
-        <option value="3">3 lines · 行</option>
-        <option value="4">4 lines · 行</option>
-        <option value="5">5 lines · 行</option>
-        <option value="6">6 lines · 行</option>
-        <option value="7">7 lines · 行</option>
-        <option value="8">8 lines · 行</option>
-        <option value="9">9 lines · 行</option>
-        <option value="10">10 lines · 行</option>
+        <option value="1">1 行</option>
+        <option value="2">2 行</option>
+        <option value="3">3 行</option>
+        <option value="4">4 行</option>
+        <option value="5">5 行</option>
+        <option value="6">6 行</option>
+        <option value="7">7 行</option>
+        <option value="8">8 行</option>
+        <option value="9">9 行</option>
+        <option value="10">10 行</option>
       </select>
       <select id="theme" title="Reading mode">
         <option value="day">Day · 日间</option>
@@ -52,7 +53,7 @@
     <div class="spacer"></div>
 
     <div class="group">
-      <button id="btn-export" title="Download the paper with your highlights, notes and AI chat">Export PDF · 导出</button>
+      <button id="btn-export" title="Download the paper with your highlights, notes and AI chat">Export · 导出</button>
       <div class="dropdown">
         <button id="btn-more" aria-label="More">More ▾</button>
         <div id="more-menu" class="menu" hidden>
@@ -68,13 +69,25 @@
   </header>
 
   <main class="layout">
+    <aside id="library" class="library">
+      <div class="lib-head">
+        <span class="lib-heading">Library · 文库</span>
+        <button id="library-close" class="x" title="Hide the library · 收起">✕</button>
+      </div>
+      <input id="lib-search" type="search" placeholder="Search papers… 搜索" />
+      <div id="lib-list" class="lib-list"></div>
+      <div class="lib-foot">
+        <button id="lib-open" class="primary">+ Open a new PDF</button>
+        <div id="lib-usage" class="muted"></div>
+      </div>
+    </aside>
     <section id="viewer" class="viewer">
       <div id="empty" class="empty">
         <div class="empty-card">
           <h1>Paper Reading Partner</h1>
           <p>Open a PDF paper to start reading. 打开一篇论文开始阅读。</p>
           <button id="btn-open-2" class="primary big">Choose a PDF…</button>
-          <p class="muted">or drag &amp; drop a PDF file here</p>
+          <p class="muted">or drag &amp; drop a PDF file here — papers you've opened before are in the <b>Library</b> on the left</p>
           <ul class="tips">
             <li><b>Line focus</b> follows your mouse and greys out the rest. <b>Click</b> the paper to switch it on/off; <b>↑ / ↓</b> move line by line.</li>
             <li><b>Double-click</b> a word or <b>select</b> text → Translate · Ask AI · Highlight · Note.</li>

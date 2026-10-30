@@ -3,6 +3,7 @@
   --ui-font: 15px;
   --margin-w: 300px;
   --sidebar-w: 410px;
+  --library-w: 250px;
   --bg: #e9ecf0;
   --panel: #ffffff;
   --panel-2: #f5f6f8;
@@ -139,6 +140,33 @@ textarea:focus, input:focus, select:focus { outline: 2px solid color-mix(in srgb
   font-size: var(--ui-font);
 }
 body.no-sidebar .sidebar { display: none; }
+
+/* library (left side bar) */
+.library {
+  width: var(--library-w);
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  animation: slide-in-left 0.18s ease-out;
+}
+body.no-library .library { display: none; }
+@keyframes slide-in-left { from { transform: translateX(-24px); opacity: 0; } }
+.lib-head { display: flex; align-items: center; padding: 10px 8px 6px 14px; }
+.lib-heading { flex: 1; font-weight: 600; }
+#lib-search { margin: 0 10px 8px; }
+.lib-list { flex: 1; overflow: auto; padding: 0 8px 8px; display: flex; flex-direction: column; gap: 4px; }
+.lib-item { position: relative; padding: 7px 28px 7px 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+.lib-item:hover { background: var(--panel-2); }
+.lib-item.current { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.lib-name { font-weight: 500; overflow-wrap: anywhere; line-height: 1.3; }
+.lib-title { font-size: 12px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; }
+.lib-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.lib-del { position: absolute; top: 6px; right: 4px; opacity: 0; }
+.lib-item:hover .lib-del { opacity: 1; }
+.lib-foot { border-top: 1px solid var(--border); padding: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 11.5px; }
 .sidebar { animation: slide-in 0.18s ease-out; }
 @keyframes slide-in { from { transform: translateX(24px); opacity: 0; } }
 
@@ -387,12 +415,16 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .ex-who { font-weight: 700; font-size: 13px; color: #3b6fe0; margin-bottom: 4px; }
 
 /* ---------------------------------------------------------------- small screens */
+@media (max-width: 1360px) {
+  .brand { display: none; }
+}
 @media (max-width: 1100px) {
-  :root { --sidebar-w: 340px; --margin-w: 240px; }
+  :root { --sidebar-w: 340px; --margin-w: 240px; --library-w: 220px; }
 }
 @media (max-width: 800px) {
   .layout { flex-direction: column; }
   .sidebar { width: auto; height: 45vh; border-left: 0; border-top: 1px solid var(--border); }
+  .library { width: auto; max-height: 35vh; border-right: 0; border-bottom: 1px solid var(--border); }
   :root { --margin-w: 200px; }
   .brand { display: none; }
 }

@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS = {
   fontSize: 15,
   focus: true,
   focusLines: 1,
+  libraryOpen: true,
 };
 
 export function loadSettings() {
@@ -55,4 +56,8 @@ export async function idbGet(key) {
 
 export async function idbSet(key, value) {
   try { await tx('readwrite', (s) => s.put(value, key)); } catch (e) { console.warn('save failed', e); }
+}
+
+export async function idbDelete(key) {
+  try { await tx('readwrite', (s) => s.delete(key)); } catch (e) { console.warn('delete failed', e); }
 }

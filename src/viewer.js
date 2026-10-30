@@ -238,6 +238,18 @@ export class Viewer {
     this.scheduleRender();
   }
 
+  /** Close the current document and clear the pages. */
+  async close() {
+    if (this.pdf) await this.pdf.destroy().catch(() => {});
+    this.pdf = null;
+    this.pagesEl.replaceChildren();
+    this.textLayers.clear();
+    this.pages = [];
+    this.activePage = null;
+    this.current = null;
+    this.scrollEl.classList.remove('focusing');
+  }
+
   async title() {
     try {
       const meta = await this.pdf.getMetadata();
